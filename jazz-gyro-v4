@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+  />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Jazz Is About Being In The Moment — V4</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Anton&family=Platypi:ital,wght@1,400&display=swap"
+    rel="stylesheet"
+  />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #000000;
+      --white: #ffffff;
+      --pill-bg: #171717;
+      --pill-border: rgba(255, 255, 255, 0.06);
+      --ghost-opacity: 0.1;
+      --font-size-title: clamp(64px, 23vw, 88px);
+      --font-size-cta: 16px;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      touch-action: none;
+      background: var(--bg);
+      -webkit-font-smoothing: antialiased;
+      overscroll-behavior: none;
+    }
+
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: 999;
+      pointer-events: none;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      opacity: 0.22;
+      mix-blend-mode: overlay;
+    }
+
+    #physics-canvas, #physics-layer, #ghost-layer, #touch-layer {
+      position: fixed;
+      inset: 0;
+    }
+
+    #physics-canvas {
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0;
+    }
+
+    #touch-layer {
+      z-index: 40;
+      touch-action: none;
+    }
+
+    #ghost-layer {
+      z-index: 1;
+      pointer-events: none;
+      user-select: none;
+      opacity: var(--ghost-opacity);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #ghost-layer .ghost-group {
+      width: 100%;
+      min-height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 26px;
+      padding: 24px 0;
+    }
+
+    #ghost-layer .ghost-lines {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+    }
+
+    #physics-layer {
+      z-index: 10;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    .phrase-line {
+      display: block;
+      font-family: "Anton", sans-serif;
+      font-size: var(--font-size-title);
+      font-weight: 400;
+      text-transform: uppercase;
+      line-height: 0.92;
+      letter-spacing: -0.02em;
+      text-align: center;
+      white-space: nowrap;
+      color: var(--white);
+    }
+
+    .cta-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 142px;
+      padding: 12px 24px;
+      border-radius: 999px;
+      background: var(--pill-bg);
+      border: 1px solid var(--pill-border);
+      color: rgba(255, 255, 255, 0.82);
+      font-family: "Platypi", serif;
+      font-style: italic;
+      font-size: var(--font-size-cta);
+      line-height: 1;
+      white-space: nowrap;
+      letter-spacing: 0.01em;
+    }
+
+    .phys-el {
+      position: absolute;
+      transform-origin: center center;
+      will-change: transform;
+      backface-visibility: hidden;
+    }
+
+    #hint {
+      position: fixed;
+      bottom: 34px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 100;
+      pointer-events: none;
+      font-family: "Platypi", serif;
+      font-style: italic;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      color: rgba(255, 255, 255, 0.28);
+      white-space: nowrap;
+      transition: opacity 1s ease;
+    }
+
+    #hint.hidden { opacity: 0; }
+
+    #motion-ui {
+      position: fixed;
+      top: 22px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 220;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    #motion-btn {
+      border: 0;
+      border-radius: 999px;
+      padding: 14px 20px;
+      background: rgba(23, 23, 23, 0.92);
+      color: #fff;
+      font-family: "Platypi", serif;
+      font-style: italic;
+      font-size: 15px;
+      cursor: pointer;
+      -webkit-appearance: none;
+      appearance: none;
+      backdrop-filter: blur(8px);
+    }
+
+    #motion-status {
+      font-family: "Platypi", serif;
+      font-style: italic;
+      font-size: 11px;
+      letter-spacing: 0.04em;
+      color: rgba(255, 255, 255, 0.38);
+      text-align: center;
+      max-width: 270px;
+      line-height: 1.4;
+    }
+
+    #motion-ui.hidden {
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.5s ease;
+    }
+  </style>
+</head>
+<body>
+  <div id="motion-ui">
+    <button id="motion-btn" type="button">Enable motion</button>
+    <div id="motion-status">Tap to activate the gyroscope and shake response.</div>
+  </div>
+
+  <div id="ghost-layer" aria-hidden="true">
+    <div class="ghost-group">
+      <span class="cta-pill">Agenda</span>
+      <div class="ghost-lines">
+        <span class="phrase-line">JAZZ</span>
+        <span class="phrase-line">IS ABOUT</span>
+        <span class="phrase-line">BEING</span>
+        <span class="phrase-line">IN THE</span>
+        <span class="phrase-line">MOMENT.</span>
+      </div>
+      <span class="cta-pill">Mapa</span>
+    </div>
+  </div>
+
+  <div id="physics-layer"></div>
+  <canvas id="physics-canvas"></canvas>
+  <div id="touch-layer"></div>
+  <div id="hint">tilt or shake your phone</div>
+
+  <script>
+    (function () {
+      "use strict";
+
+      const { Engine, Render, Runner, Bodies, Body, World, Mouse, MouseConstraint } = Matter;
+
+      const CFG = {
+        gravity: {
+          scale: 0.00075,
+          maxX: 0.7,
+          maxY: 0.7
+        },
+        physics: {
+          restitution: 0.04,
+          friction: 0.55,
+          frictionAir: 0.028,
+          density: 0.004
+        },
+        motion: {
+          shakeThreshold: 12,
+          shakeForce: 0.035,
+          cooldown: 120
+        },
+        walls: {
+          thickness: 80
+        },
+        initialSettle: 700
+      };
+
+      const state = {
+        ready: false,
+        hintHidden: false,
+        tiltX: 0,
+        tiltY: 0,
+        targetTiltX: 0,
+        targetTiltY: 0.12,
+        bodies: [],
+        receivedSensorData: false,
+        lastShakeTime: 0
+      };
+
+      const canvas = document.getElementById("physics-canvas");
+      const physicsLayer = document.getElementById("physics-layer");
+      const touchLayer = document.getElementById("touch-layer");
+      const hint = document.getElementById("hint");
+      const motionBtn = document.getElementById("motion-btn");
+      const motionStatus = document.getElementById("motion-status");
+      const motionUi = document.getElementById("motion-ui");
+
+      const engine = Engine.create({
+        gravity: { x: 0, y: 0, scale: CFG.gravity.scale },
+        positionIterations: 10,
+        velocityIterations: 8
+      });
+
+      const world = engine.world;
+
+      const render = Render.create({
+        canvas,
+        engine,
+        options: {
+          width: window.innerWidth,
+          height: window.innerHeight,
+          background: "transparent",
+          wireframes: false
+        }
+      });
+
+      Render.run(render);
+      const runner = Runner.create();
+      Runner.run(runner, engine);
+
+      function clamp(value, min, max) {
+        return Math.max(min, Math.min(max, value));
+      }
+
+      function hideHint() {
+        if (state.hintHidden) return;
+        state.hintHidden = true;
+        hint.classList.add("hidden");
+      }
+
+      function createPhysicsEl(tag, className, text) {
+        const el = document.createElement(tag);
+        el.className = "phys-el " + className;
+        el.textContent = text;
+        physicsLayer.appendChild(el);
+        return el;
+      }
+
+      function getGhostPositions() {
+        const ghost = document.getElementById("ghost-layer");
+        const lines = ghost.querySelectorAll(".phrase-line");
+        const pills = ghost.querySelectorAll(".cta-pill");
+        const results = [];
+
+        pills.forEach((el) => {
+          const r = el.getBoundingClientRect();
+          results.push({
+            type: "pill",
+            x: r.left + r.width / 2,
+            y: r.top + r.height / 2,
+            w: r.width,
+            h: r.height,
+            text: el.textContent
+          });
+        });
+
+        lines.forEach((el) => {
+          const r = el.getBoundingClientRect();
+          results.push({
+            type: "line",
+            x: r.left + r.width / 2,
+            y: r.top + r.height / 2,
+            w: r.width,
+            h: r.height,
+            text: el.textContent
+          });
+        });
+
+        return results;
+      }
+
+      function buildWalls() {
+        const W = window.innerWidth;
+        const H = window.innerHeight;
+        const t = CFG.walls.thickness;
+
+        World.add(world, [
+          Bodies.rectangle(W / 2, H + t / 2, W + t * 2, t, { isStatic: true }),
+          Bodies.rectangle(W / 2, -t / 2, W + t * 2, t, { isStatic: true }),
+          Bodies.rectangle(-t / 2, H / 2, t, H + t * 2, { isStatic: true }),
+          Bodies.rectangle(W + t / 2, H / 2, t, H + t * 2, { isStatic: true })
+        ]);
+      }
+
+      function buildPhysicsElements() {
+        const positions = getGhostPositions();
+
+        positions.forEach((pos) => {
+          const el = createPhysicsEl(
+            "span",
+            pos.type === "line" ? "phrase-line" : "cta-pill",
+            pos.text
+          );
+
+          el.style.transform = `translate(${pos.x - pos.w / 2}px, ${pos.y - pos.h / 2}px)`;
+
+          const body = Bodies.rectangle(
+            pos.x,
+            pos.y,
+            pos.w * (pos.type === "line" ? 0.94 : 0.96),
+            pos.h * (pos.type === "line" ? 0.82 : 0.9),
+            {
+              restitution: CFG.physics.restitution,
+              friction: CFG.physics.friction,
+              frictionAir: CFG.physics.frictionAir,
+              density: pos.type === "pill" ? CFG.physics.density * 0.8 : CFG.physics.density,
+              chamfer: pos.type === "pill" ? { radius: 24 } : { radius: 6 },
+              inertia: Infinity
+            }
+          );
+
+          World.add(world, body);
+          state.bodies.push({ body, el });
+
+          setTimeout(() => {
+            Body.setInertia(body, body.mass * 8000);
+          }, CFG.initialSettle);
+        });
+      }
+
+      function syncDOMToPhysics() {
+        state.bodies.forEach(({ body, el }) => {
+          const w = el.offsetWidth;
+          const h = el.offsetHeight;
+          el.style.transform =
+            `translate(${body.position.x - w / 2}px, ${body.position.y - h / 2}px) rotate(${body.angle}rad)`;
+        });
+      }
+
+      function updateGravity() {
+        if (!state.ready) return;
+
+        state.tiltX += (state.targetTiltX - state.tiltX) * 0.08;
+        state.tiltY += (state.targetTiltY - state.tiltY) * 0.08;
+
+        engine.gravity.x = state.tiltX;
+        engine.gravity.y = state.tiltY;
+      }
+
+      function applyOrientation(beta, gamma) {
+        const screenAngle =
+          (window.screen.orientation && typeof window.screen.orientation.angle === "number")
+            ? window.screen.orientation.angle
+            : (typeof window.orientation === "number" ? window.orientation : 0);
+
+        let gx = 0;
+        let gy = 0;
+
+        if (screenAngle === 90) {
+          gx = clamp(beta / 45, -1, 1);
+          gy = clamp(-gamma / 45, -1, 1);
+        } else if (screenAngle === -90 || screenAngle === 270) {
+          gx = clamp(-beta / 45, -1, 1);
+          gy = clamp(gamma / 45, -1, 1);
+        } else if (screenAngle === 180) {
+          gx = clamp(-gamma / 45, -1, 1);
+          gy = clamp(-beta / 45, -1, 1);
+        } else {
+          gx = clamp(gamma / 45, -1, 1);
+          gy = clamp(beta / 45, -1, 1);
+        }
+
+        state.targetTiltX = clamp(gx * 0.55, -CFG.gravity.maxX, CFG.gravity.maxX);
+        state.targetTiltY = clamp(gy * 0.55, -CFG.gravity.maxY, CFG.gravity.maxY);
+
+        state.receivedSensorData = true;
+        hideHint();
+        motionStatus.textContent = "Motion active.";
+        motionUi.classList.add("hidden");
+      }
+
+      function handleOrientation(e) {
+        if (!state.ready) return;
+        if (typeof e.beta !== "number" || typeof e.gamma !== "number") return;
+        applyOrientation(e.beta, e.gamma);
+      }
+
+      function applyShakeImpulse(ax, ay) {
+        const now = Date.now();
+        if (now - state.lastShakeTime < CFG.motion.cooldown) return;
+
+        const magnitude = Math.sqrt(ax * ax + ay * ay);
+        if (magnitude < CFG.motion.shakeThreshold) return;
+
+        state.lastShakeTime = now;
+
+        state.bodies.forEach(({ body }) => {
+          const fx = clamp(ax / 30, -1, 1) * CFG.motion.shakeForce * body.mass;
+          const fy = clamp(ay / 30, -1, 1) * CFG.motion.shakeForce * body.mass;
+
+          Body.applyForce(body, body.position, { x: fx, y: fy });
+          Body.setAngularVelocity(body, body.angularVelocity + (Math.random() - 0.5) * 0.22);
+        });
+
+        hideHint();
+      }
+
+      function handleMotion(e) {
+        if (!state.ready) return;
+
+        const acc = e.accelerationIncludingGravity || e.acceleration;
+        if (!acc) return;
+
+        const ax = acc.x || 0;
+        const ay = acc.y || 0;
+
+        applyShakeImpulse(ax, ay);
+      }
+
+      function setupMouseFallback() {
+        motionStatus.textContent = "No gyroscope detected. Mouse fallback enabled.";
+
+        window.addEventListener("mousemove", (e) => {
+          if (!state.ready) return;
+
+          const cx = window.innerWidth / 2;
+          const cy = window.innerHeight / 2;
+          const nx = (e.clientX - cx) / cx;
+          const ny = (e.clientY - cy) / cy;
+
+          state.targetTiltX = clamp(nx * 0.3, -CFG.gravity.maxX, CFG.gravity.maxX);
+          state.targetTiltY = clamp(ny * 0.3, -CFG.gravity.maxY, CFG.gravity.maxY);
+          hideHint();
+        });
+
+        setTimeout(() => motionUi.classList.add("hidden"), 1800);
+      }
+
+      async function enableMotion() {
+        motionBtn.disabled = true;
+        motionStatus.textContent = "Waiting for sensor data...";
+
+        try {
+          if (
+            typeof DeviceOrientationEvent !== "undefined" &&
+            typeof DeviceOrientationEvent.requestPermission === "function"
+          ) {
+            const response = await DeviceOrientationEvent.requestPermission();
+            if (response !== "granted") {
+              motionStatus.textContent = "Motion permission denied.";
+              motionBtn.disabled = false;
+              return;
+            }
+          }
+
+          window.addEventListener("deviceorientation", handleOrientation, true);
+          window.addEventListener("deviceorientationabsolute", handleOrientation, true);
+          window.addEventListener("devicemotion", handleMotion, true);
+
+          setTimeout(() => {
+            if (!state.receivedSensorData) {
+              motionStatus.textContent = "No sensor data received. Use HTTPS or Chrome on Android.";
+              motionBtn.disabled = false;
+            }
+          }, 1600);
+        } catch (err) {
+          motionStatus.textContent = "Motion activation failed.";
+          motionBtn.disabled = false;
+        }
+      }
+
+      function setupDrag() {
+        const mouse = Mouse.create(canvas);
+
+        Mouse.setScale(mouse, {
+          x: canvas.width / window.innerWidth,
+          y: canvas.height / window.innerHeight
+        });
+
+        const mouseConstraint = MouseConstraint.create(engine, {
+          mouse,
+          constraint: {
+            stiffness: 0.05,
+            damping: 0.3,
+            angularStiffness: 0.01,
+            render: { visible: false }
+          }
+        });
+
+        World.add(world, mouseConstraint);
+
+        function forward(type, sourceType) {
+          touchLayer.addEventListener(
+            sourceType || type,
+            (e) => {
+              const point = e.touches ? (e.touches[0] || e.changedTouches[0]) : e;
+              if (!point) return;
+
+              const sim = new MouseEvent(type, {
+                clientX: point.clientX,
+                clientY: point.clientY,
+                bubbles: true
+              });
+
+              canvas.dispatchEvent(sim);
+
+              if (e.cancelable) e.preventDefault();
+            },
+            { passive: false }
+          );
+        }
+
+        forward("mousedown", "touchstart");
+        forward("mousemove", "touchmove");
+        forward("mouseup", "touchend");
+
+        ["mousedown", "mousemove", "mouseup"].forEach((type) => {
+          touchLayer.addEventListener(type, (e) => {
+            const sim = new MouseEvent(type, {
+              clientX: e.clientX,
+              clientY: e.clientY,
+              bubbles: true
+            });
+            canvas.dispatchEvent(sim);
+          });
+        });
+      }
+
+      function loop() {
+        updateGravity();
+        syncDOMToPhysics();
+        requestAnimationFrame(loop);
+      }
+
+      function onResize() {
+        const W = window.innerWidth;
+        const H = window.innerHeight;
+        render.canvas.width = W;
+        render.canvas.height = H;
+        render.options.width = W;
+        render.options.height = H;
+      }
+
+      function startIntro() {
+        engine.gravity.x = 0;
+        engine.gravity.y = 0;
+
+        setTimeout(() => {
+          state.targetTiltY = 0.12;
+          state.ready = true;
+        }, CFG.initialSettle);
+
+        setTimeout(hideHint, 5500);
+      }
+
+      function init() {
+        document.fonts.ready.then(() => {
+          buildWalls();
+          buildPhysicsElements();
+          setupDrag();
+          startIntro();
+          loop();
+        });
+
+        motionBtn.addEventListener("click", enableMotion);
+
+        setTimeout(() => {
+          if (!window.isSecureContext) {
+            motionStatus.textContent = "Gyroscope usually needs HTTPS or localhost.";
+          }
+        }, 300);
+      }
+
+      window.addEventListener("resize", onResize);
+
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", init);
+      } else {
+        init();
+      }
+    })();
+  </script>
+</body>
+</html>
