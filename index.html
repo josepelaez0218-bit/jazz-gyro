@@ -2,14 +2,20 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+  />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>Jazz Is About Being In The Moment</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Platypi:ital,wght@1,400&display=swap" rel="stylesheet" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Anton&family=Platypi:ital,wght@1,400&display=swap"
+    rel="stylesheet"
+  />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
 
   <style>
@@ -39,7 +45,6 @@
       overscroll-behavior: none;
     }
 
-    /* grain overlay */
     body::after {
       content: "";
       position: fixed;
@@ -51,7 +56,6 @@
       mix-blend-mode: overlay;
     }
 
-    /* ── Layers ── */
     #physics-canvas {
       position: fixed;
       inset: 0;
@@ -60,6 +64,13 @@
       pointer-events: none;
       z-index: 0;
       opacity: 0;
+    }
+
+    #touch-layer {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      touch-action: none;
     }
 
     #ghost-layer {
@@ -93,24 +104,14 @@
       gap: 0;
     }
 
-    /* Physics layer sits ABOVE touch-layer so pills receive pointer events */
     #physics-layer {
       position: fixed;
       inset: 0;
-      z-index: 30;
+      z-index: 10;
       pointer-events: none;
       user-select: none;
     }
 
-    /* Touch layer handles drag forwarding, sits below physics layer */
-    #touch-layer {
-      position: fixed;
-      inset: 0;
-      z-index: 20;
-      touch-action: none;
-    }
-
-    /* ── Typography ── */
     .phrase-line {
       display: block;
       font-family: "Anton", sans-serif;
@@ -129,18 +130,17 @@
       align-items: center;
       justify-content: center;
       min-width: 142px;
-      padding: 12px 24px;
+      padding: 20px 24px;
       border-radius: 999px;
       background: var(--pill-bg);
       border: 1px solid var(--pill-border);
-      color: rgba(255, 255, 255, 0.82);
+      color: #BEFD60;
       font-family: "Platypi", serif;
       font-style: italic;
       font-size: var(--font-size-cta);
       line-height: 1;
       white-space: nowrap;
       letter-spacing: 0.01em;
-      /* tap interaction */
       transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
       cursor: pointer;
       -webkit-tap-highlight-color: transparent;
@@ -159,7 +159,6 @@
       backface-visibility: hidden;
     }
 
-    /* ── Hint ── */
     #hint {
       position: fixed;
       bottom: 34px;
@@ -176,9 +175,10 @@
       transition: opacity 1s ease;
     }
 
-    #hint.hidden { opacity: 0; }
+    #hint.hidden {
+      opacity: 0;
+    }
 
-    /* ── iOS permission overlay ── */
     #permission-screen {
       position: fixed;
       inset: 0;
@@ -188,19 +188,34 @@
       justify-content: center;
       background: rgba(0, 0, 0, 0.94);
       backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
     }
 
     .permission-card {
+      width: calc(100% - 48px);
+      max-width: 320px;
+      padding: 24px;
+      border-radius: 24px;
+      background: #0d0d0d;
+      border: 1px solid rgba(255, 255, 255, 0.06);
       display: flex;
+      flex-direction: column;
       align-items: center;
-      justify-content: center;
+      gap: 18px;
+      text-align: center;
+    }
+
+    .perm-label {
+      font-family: "Platypi", serif;
+      font-style: italic;
+      font-size: 14px;
+      line-height: 1.6;
+      color: rgba(255, 255, 255, 0.5);
     }
 
     #permission-btn {
-      border: 1px solid rgba(255, 255, 255, 0.12);
+      border: 0;
       border-radius: 999px;
-      padding: 14px 28px;
+      padding: 14px 26px;
       background: #171717;
       color: #ffffff;
       font-family: "Platypi", serif;
@@ -209,28 +224,20 @@
       cursor: pointer;
       -webkit-appearance: none;
       appearance: none;
-      transition: background 0.15s ease, color 0.15s ease;
-    }
-
-    #permission-btn:active {
-      background: #ffffff;
-      color: #000000;
     }
   </style>
 </head>
 <body>
-
-  <!-- iOS permission screen -->
   <div id="permission-screen">
     <div class="permission-card">
       <button id="permission-btn" type="button">Enable motion</button>
     </div>
   </div>
 
-  <!-- Ghost layer: static backdrop at low opacity -->
   <div id="ghost-layer" aria-hidden="true">
     <div class="ghost-group">
       <span class="cta-pill">Agenda</span>
+
       <div class="ghost-lines">
         <span class="phrase-line">JAZZ</span>
         <span class="phrase-line">IS ABOUT</span>
@@ -238,527 +245,504 @@
         <span class="phrase-line">IN THE</span>
         <span class="phrase-line">MOMENT.</span>
       </div>
+
       <span class="cta-pill">Mapa</span>
     </div>
   </div>
 
-  <!-- Physics DOM elements synced to Matter.js bodies -->
   <div id="physics-layer"></div>
-
-  <!-- Invisible canvas used by Matter.js renderer + MouseConstraint -->
   <canvas id="physics-canvas"></canvas>
-
-  <!-- Touch/drag capture layer -->
   <div id="touch-layer"></div>
-
-  <!-- Hint -->
   <div id="hint">agita o inclina tu móvil</div>
 
   <script>
-  (function () {
-    "use strict";
+    (function () {
+      "use strict";
 
-    const { Engine, Render, Runner, Bodies, Body, World, Mouse, MouseConstraint } = Matter;
+      const {
+        Engine,
+        Render,
+        Runner,
+        Bodies,
+        Body,
+        World,
+        Mouse,
+        MouseConstraint
+      } = Matter;
 
-    // ─────────────────────────────────────────
-    // CONFIG
-    // ─────────────────────────────────────────
-    const CFG = {
-      gravity: {
-        scale:  0.00075,
-        maxX:   1.2,
-        maxY:   1.0
-      },
-      physics: {
-        restitution: 0.18,   // slight bounce — feels tactile not bouncy
-        friction:    0.4,
-        frictionAir: 0.018,  // low air drag → slides laterally on tilt
-        density:     0.004
-      },
-      shake: {
-        threshold: 6,        // m/s² of filtered acceleration to trigger
-        force:     0.22,     // impulse multiplier
-        cooldown:  60        // ms between shake events
-      },
-      walls:        { thickness: 80 },
-      initialSettle: 900     // ms before gravity activates
-    };
+      const CFG = {
+        gravity: {
+          scale: 0.00075,
+          maxX: 0.9,
+          maxY: 0.8
+        },
+        physics: {
+          restitution: 0.12,
+          friction: 0.4,
+          frictionAir: 0.022,
+          density: 0.004
+        },
+        shake: {
+          threshold: 6,
+          force: 0.14,
+          cooldown: 80
+        },
+        walls: {
+          thickness: 120
+        },
+        initialSettle: 900
+      };
 
-    // ─────────────────────────────────────────
-    // STATE
-    // ─────────────────────────────────────────
-    const state = {
-      ready:        false,
-      hintHidden:   false,
-      tiltX:        0,
-      tiltY:        0,
-      targetTiltX:  0,
-      targetTiltY:  0.12,
-      bodies:       [],       // { body, el }
-      lastShakeTime: 0
-    };
+      const state = {
+        ready: false,
+        hintHidden: false,
+        tiltX: 0,
+        tiltY: 0,
+        targetTiltX: 0,
+        targetTiltY: 0.12,
+        bodies: [],
+        hasMotion: false,
+        hasInteracted: false,
+        lastShakeTime: 0
+      };
 
-    // High-pass filter state (isolates motion jerk from gravity)
-    const hpf = { x: 0, y: 0, prevX: null, prevY: null, alpha: 0.8 };
+      // High-pass filter — strips gravity DC component, isolates wrist jerk
+      const hpf = { x: 0, y: 0, prevX: null, prevY: null, alpha: 0.8 };
 
-    // ─────────────────────────────────────────
-    // DOM REFS
-    // ─────────────────────────────────────────
-    const canvas           = document.getElementById("physics-canvas");
-    const physicsLayer     = document.getElementById("physics-layer");
-    const touchLayer       = document.getElementById("touch-layer");
-    const permissionScreen = document.getElementById("permission-screen");
-    const permissionBtn    = document.getElementById("permission-btn");
-    const hint             = document.getElementById("hint");
+      const canvas = document.getElementById("physics-canvas");
+      const physicsLayer = document.getElementById("physics-layer");
+      const touchLayer = document.getElementById("touch-layer");
+      const permissionScreen = document.getElementById("permission-screen");
+      const permissionBtn = document.getElementById("permission-btn");
+      const hint = document.getElementById("hint");
 
-    // ─────────────────────────────────────────
-    // ENGINE
-    // ─────────────────────────────────────────
-    const engine = Engine.create({
-      gravity: { x: 0, y: 0, scale: CFG.gravity.scale },
-      positionIterations: 10,
-      velocityIterations: 8
-    });
-    const world = engine.world;
-
-    const render = Render.create({
-      canvas,
-      engine,
-      options: {
-        width:      window.innerWidth,
-        height:     window.innerHeight,
-        background: "transparent",
-        wireframes: false
-      }
-    });
-    Render.run(render);
-    Runner.run(Runner.create(), engine);
-
-    // ─────────────────────────────────────────
-    // UTILS
-    // ─────────────────────────────────────────
-    function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
-
-    function hideHint() {
-      if (state.hintHidden) return;
-      state.hintHidden = true;
-      hint.classList.add("hidden");
-    }
-
-    // ─────────────────────────────────────────
-    // DOM ELEMENT FACTORY
-    // ─────────────────────────────────────────
-    function createPhysicsEl(className, text) {
-      const el = document.createElement("span");
-      el.className = "phys-el " + className;
-      el.textContent = text;
-      physicsLayer.appendChild(el);
-      return el;
-    }
-
-    // ─────────────────────────────────────────
-    // CTA TAP INTERACTION
-    // ─────────────────────────────────────────
-    function attachPillTap(el) {
-      let timer = null;
-
-      function onTap(e) {
-        // Don't fire if this is the start of a drag
-        e.stopPropagation();
-        el.classList.add("tapped");
-        clearTimeout(timer);
-        timer = setTimeout(() => el.classList.remove("tapped"), 500);
-      }
-
-      el.addEventListener("touchstart", onTap, { passive: true });
-      el.addEventListener("mousedown",  onTap);
-    }
-
-    // ─────────────────────────────────────────
-    // GHOST POSITIONS (read layout from ghost layer)
-    // ─────────────────────────────────────────
-    function getGhostPositions() {
-      const ghost = document.getElementById("ghost-layer");
-      const results = [];
-
-      // Pills first (Agenda at top, Mapa at bottom)
-      ghost.querySelectorAll(".cta-pill").forEach((el) => {
-        const r = el.getBoundingClientRect();
-        results.push({ type: "pill", x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height, text: el.textContent.trim() });
+      const engine = Engine.create({
+        gravity: { x: 0, y: 0, scale: CFG.gravity.scale },
+        positionIterations: 10,
+        velocityIterations: 8
       });
 
-      // Text lines
-      ghost.querySelectorAll(".phrase-line").forEach((el) => {
-        const r = el.getBoundingClientRect();
-        results.push({ type: "line", x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height, text: el.textContent.trim() });
+      const world = engine.world;
+
+      const render = Render.create({
+        canvas,
+        engine,
+        options: {
+          width: window.innerWidth,
+          height: window.innerHeight,
+          background: "transparent",
+          wireframes: false
+        }
       });
 
-      return results;
-    }
+      Render.run(render);
 
-    // ─────────────────────────────────────────
-    // BUILD WALLS
-    // ─────────────────────────────────────────
-    function buildWalls() {
-      const W = window.innerWidth;
-      const H = window.innerHeight;
-      const t = CFG.walls.thickness;
+      const runner = Runner.create();
+      Runner.run(runner, engine);
 
-      World.add(world, [
-        Bodies.rectangle(W / 2, H + t / 2,  W + t * 2, t, { isStatic: true, label: "wall" }),  // floor
-        Bodies.rectangle(W / 2, -t / 2,     W + t * 2, t, { isStatic: true, label: "wall" }),  // ceiling
-        Bodies.rectangle(-t / 2, H / 2,     t, H + t * 2, { isStatic: true, label: "wall" }),  // left
-        Bodies.rectangle(W + t / 2, H / 2,  t, H + t * 2, { isStatic: true, label: "wall" })   // right
-      ]);
-    }
+      function clamp(value, min, max) {
+        return Math.max(min, Math.min(max, value));
+      }
 
-    // ─────────────────────────────────────────
-    // BUILD PHYSICS ELEMENTS
-    // ─────────────────────────────────────────
-    function buildPhysicsElements() {
-      const positions = getGhostPositions();
+      function hideHint() {
+        if (state.hintHidden) return;
+        state.hintHidden = true;
+        hint.classList.add("hidden");
+      }
 
-      positions.forEach((pos) => {
-        const isPill = pos.type === "pill";
-        const el = createPhysicsEl(isPill ? "cta-pill" : "phrase-line", pos.text);
+      function createPhysicsEl(tag, className, text) {
+        const el = document.createElement(tag);
+        el.className = "phys-el " + className;
+        el.textContent = text;
+        physicsLayer.appendChild(el);
+        return el;
+      }
 
-        // Position at ghost coords immediately (no flash)
-        el.style.left = "0px";
-        el.style.top  = "0px";
-        el.style.transform = `translate(${pos.x - pos.w / 2}px, ${pos.y - pos.h / 2}px)`;
+      function getGhostPositions() {
+        const ghost = document.getElementById("ghost-layer");
+        const lines = ghost.querySelectorAll(".phrase-line");
+        const pills = ghost.querySelectorAll(".cta-pill");
+        const results = [];
 
-        // Pills need pointer events for tap
-        if (isPill) {
-          el.style.pointerEvents = "auto";
-          attachPillTap(el);
+        pills.forEach((el) => {
+          const r = el.getBoundingClientRect();
+          results.push({
+            type: "pill",
+            x: r.left + r.width / 2,
+            y: r.top + r.height / 2,
+            w: r.width,
+            h: r.height,
+            text: el.textContent
+          });
+        });
+
+        lines.forEach((el) => {
+          const r = el.getBoundingClientRect();
+          results.push({
+            type: "line",
+            x: r.left + r.width / 2,
+            y: r.top + r.height / 2,
+            w: r.width,
+            h: r.height,
+            text: el.textContent
+          });
+        });
+
+        return results;
+      }
+
+      function buildWalls() {
+        const W = window.innerWidth;
+        const H = window.innerHeight;
+        const t = CFG.walls.thickness;
+
+        const walls = [
+          Bodies.rectangle(W / 2, H + t / 2, W + t * 2, t, { isStatic: true }),
+          Bodies.rectangle(W / 2, -t / 2, W + t * 2, t, { isStatic: true }),
+          Bodies.rectangle(-t / 2, H / 2, t, H + t * 2, { isStatic: true }),
+          Bodies.rectangle(W + t / 2, H / 2, t, H + t * 2, { isStatic: true })
+        ];
+
+        World.add(world, walls);
+      }
+
+      function buildPhysicsElements() {
+        const positions = getGhostPositions();
+
+        positions.forEach((pos) => {
+          const el = createPhysicsEl(
+            "span",
+            pos.type === "line" ? "phrase-line" : "cta-pill",
+            pos.text
+          );
+
+          el.style.transform = `translate(${pos.x - pos.w / 2}px, ${pos.y - pos.h / 2}px)`;
+
+          const body = Bodies.rectangle(
+            pos.x,
+            pos.y,
+            pos.w * (pos.type === "line" ? 0.94 : 0.96),
+            pos.h * (pos.type === "line" ? 0.82 : 0.9),
+            {
+              restitution: CFG.physics.restitution,
+              friction: CFG.physics.friction,
+              frictionAir: CFG.physics.frictionAir,
+              density: pos.type === "pill" ? CFG.physics.density * 0.7 : CFG.physics.density,
+              chamfer: pos.type === "pill" ? { radius: 24 } : { radius: 6 },
+              inertia: Infinity
+            }
+          );
+
+          World.add(world, body);
+          state.bodies.push({ body, el });
+
+          setTimeout(() => {
+            Body.setInertia(body, body.mass * 8000);
+          }, CFG.initialSettle);
+        });
+      }
+
+      function syncDOMToPhysics() {
+        const W = window.innerWidth;
+        const H = window.innerHeight;
+        const margin = 120; // px outside viewport before rescue kicks in
+
+        state.bodies.forEach(({ body, el }) => {
+          // ── Velocity cap: prevents elements flying off on hard shakes ──
+          const maxSpeed = 28;
+          const spd = Math.sqrt(body.velocity.x * body.velocity.x + body.velocity.y * body.velocity.y);
+          if (spd > maxSpeed) {
+            const scale = maxSpeed / spd;
+            Body.setVelocity(body, { x: body.velocity.x * scale, y: body.velocity.y * scale });
+          }
+
+          // ── Out-of-bounds rescue: teleport back to center if escaped ──
+          const px = body.position.x;
+          const py = body.position.y;
+          if (px < -margin || px > W + margin || py < -margin || py > H + margin) {
+            Body.setPosition(body, { x: W / 2, y: H / 2 });
+            Body.setVelocity(body, { x: 0, y: 0 });
+            Body.setAngularVelocity(body, 0);
+          }
+
+          const w = el.offsetWidth;
+          const h = el.offsetHeight;
+          el.style.transform =
+            `translate(${body.position.x - w / 2}px, ${body.position.y - h / 2}px) rotate(${body.angle}rad)`;
+        });
+      }
+
+      function updateGravity() {
+        if (!state.ready) return;
+
+        state.tiltX += (state.targetTiltX - state.tiltX) * 0.12;
+        state.tiltY += (state.targetTiltY - state.tiltY) * 0.12;
+
+        engine.gravity.x = state.tiltX;
+        engine.gravity.y = state.tiltY;
+      }
+
+      function handleOrientation(e) {
+        if (!state.ready) return;
+        if (typeof e.beta !== "number" || typeof e.gamma !== "number") return;
+
+        if (!state.hasInteracted) state.hasInteracted = true;
+
+        const beta  = e.beta  || 0;
+        const gamma = e.gamma || 0;
+
+        const screenAngle =
+          (window.screen.orientation && typeof window.screen.orientation.angle === "number")
+            ? window.screen.orientation.angle
+            : (typeof window.orientation === "number" ? window.orientation : 0);
+
+        let gx, gy;
+        if (screenAngle === 90) {
+          gx = clamp(beta  /  45, -1, 1);
+          gy = clamp(-gamma / 45, -1, 1);
+        } else if (screenAngle === -90 || screenAngle === 270) {
+          gx = clamp(-beta  / 45, -1, 1);
+          gy = clamp(gamma  / 45, -1, 1);
+        } else if (screenAngle === 180) {
+          gx = clamp(-gamma / 45, -1, 1);
+          gy = clamp(-beta  / 45, -1, 1);
+        } else {
+          gx = clamp(gamma / 45, -1, 1);
+          gy = clamp(beta  / 45, -1, 1);
         }
 
-        // Physics body — slightly smaller than visual for better feel
-        const body = Bodies.rectangle(
-          pos.x, pos.y,
-          pos.w * (isPill ? 0.96 : 0.94),
-          pos.h * (isPill ? 0.90 : 0.82),
-          {
-            restitution: CFG.physics.restitution,
-            friction:    CFG.physics.friction,
-            frictionAir: CFG.physics.frictionAir,
-            density:     isPill ? CFG.physics.density * 0.7 : CFG.physics.density,
-            chamfer:     isPill ? { radius: 24 } : { radius: 6 },
-            inertia:     Infinity   // no rotation at start → locked until settled
-          }
-        );
+        state.targetTiltX = clamp(gx * 1.1, -CFG.gravity.maxX, CFG.gravity.maxX);
+        state.targetTiltY = clamp(gy * 1.1, -CFG.gravity.maxY, CFG.gravity.maxY);
 
-        World.add(world, body);
-        state.bodies.push({ body, el });
-
-        // Unlock rotation after settle — allows organic tumbling on shake/tilt
-        setTimeout(() => {
-          Body.setInertia(body, body.mass * 8000);
-        }, CFG.initialSettle + 200);
-      });
-    }
-
-    // ─────────────────────────────────────────
-    // SYNC DOM → PHYSICS (runs every rAF)
-    // ─────────────────────────────────────────
-    function syncDOMToPhysics() {
-      state.bodies.forEach(({ body, el }) => {
-        const w = el.offsetWidth;
-        const h = el.offsetHeight;
-        el.style.transform =
-          `translate(${body.position.x - w / 2}px, ${body.position.y - h / 2}px) rotate(${body.angle}rad)`;
-      });
-    }
-
-    // ─────────────────────────────────────────
-    // GRAVITY UPDATE (smoothly lerped)
-    // ─────────────────────────────────────────
-    function updateGravity() {
-      if (!state.ready) return;
-      state.tiltX += (state.targetTiltX - state.tiltX) * 0.12;
-      state.tiltY += (state.targetTiltY - state.tiltY) * 0.12;
-      engine.gravity.x = state.tiltX;
-      engine.gravity.y = state.tiltY;
-    }
-
-    // ─────────────────────────────────────────
-    // ORIENTATION HANDLER (gyroscope → gravity)
-    // ─────────────────────────────────────────
-    function handleOrientation(e) {
-      if (!state.ready) return;
-      if (typeof e.beta !== "number" || typeof e.gamma !== "number") return;
-
-      const beta  = e.beta  || 0;
-      const gamma = e.gamma || 0;
-
-      // Correct for screen rotation
-      const screenAngle =
-        (window.screen.orientation && typeof window.screen.orientation.angle === "number")
-          ? window.screen.orientation.angle
-          : (typeof window.orientation === "number" ? window.orientation : 0);
-
-      let gx, gy;
-      if (screenAngle === 90) {
-        gx = clamp(beta  /  45, -1, 1);
-        gy = clamp(-gamma / 45, -1, 1);
-      } else if (screenAngle === -90 || screenAngle === 270) {
-        gx = clamp(-beta  / 45, -1, 1);
-        gy = clamp(gamma  / 45, -1, 1);
-      } else if (screenAngle === 180) {
-        gx = clamp(-gamma / 45, -1, 1);
-        gy = clamp(-beta  / 45, -1, 1);
-      } else {
-        // Portrait (0°) — standard
-        gx = clamp(gamma / 45, -1, 1);
-        gy = clamp(beta  / 45, -1, 1);
+        hideHint();
       }
 
-      state.targetTiltX = clamp(gx * 1.1, -CFG.gravity.maxX, CFG.gravity.maxX);
-      state.targetTiltY = clamp(gy * 1.1, -CFG.gravity.maxY, CFG.gravity.maxY);
+      function applyShakeImpulse(jerkX, jerkY) {
+        const now = Date.now();
+        if (now - state.lastShakeTime < CFG.shake.cooldown) return;
 
-      hideHint();
-    }
+        const mag = Math.sqrt(jerkX * jerkX + jerkY * jerkY);
+        if (mag < CFG.shake.threshold) return;
 
-    // ─────────────────────────────────────────
-    // SHAKE HANDLER (devicemotion → impulse)
-    // Uses a high-pass filter to strip gravity and
-    // isolate the user's actual wrist movement.
-    // ─────────────────────────────────────────
-    function applyShakeImpulse(jerkX, jerkY) {
-      const now = Date.now();
-      if (now - state.lastShakeTime < CFG.shake.cooldown) return;
+        state.lastShakeTime = now;
 
-      const mag = Math.sqrt(jerkX * jerkX + jerkY * jerkY);
-      if (mag < CFG.shake.threshold) return;
+        const dirX     = jerkX / mag;
+        const dirY     = jerkY / mag;
+        const strength = Math.min(mag / 15, 2.5);
 
-      state.lastShakeTime = now;
-
-      const dirX    = jerkX / mag;
-      const dirY    = jerkY / mag;
-      const strength = Math.min(mag / 15, 3.0);  // scale with intensity, cap at 3×
-
-      state.bodies.forEach(({ body }) => {
-        Body.applyForce(body, body.position, {
-          x: dirX * CFG.shake.force * body.mass * strength,
-          y: dirY * CFG.shake.force * body.mass * strength
+        state.bodies.forEach(({ body }) => {
+          Body.applyForce(body, body.position, {
+            x: dirX * CFG.shake.force * body.mass * strength,
+            y: dirY * CFG.shake.force * body.mass * strength
+          });
+          Body.setAngularVelocity(body, body.angularVelocity + (Math.random() - 0.5) * 0.4 * strength);
         });
-        // Slight random spin for organic feel
-        Body.setAngularVelocity(body, body.angularVelocity + (Math.random() - 0.5) * 0.5 * strength);
-      });
 
-      hideHint();
-    }
-
-    function handleMotion(e) {
-      if (!state.ready) return;
-
-      let ax = 0, ay = 0;
-      const raw  = e.acceleration;
-      const withG = e.accelerationIncludingGravity;
-
-      if (raw && raw.x !== null && raw.y !== null) {
-        // Best case: browser gives us gravity-free acceleration
-        ax = raw.x || 0;
-        ay = raw.y || 0;
-      } else if (withG) {
-        // Fallback: high-pass filter removes the DC gravity component
-        const gx = withG.x || 0;
-        const gy = withG.y || 0;
-        if (hpf.prevX === null) { hpf.prevX = gx; hpf.prevY = gy; }
-        hpf.x = hpf.alpha * (hpf.x + gx - hpf.prevX);
-        hpf.y = hpf.alpha * (hpf.y + gy - hpf.prevY);
-        hpf.prevX = gx;
-        hpf.prevY = gy;
-        ax = hpf.x;
-        ay = hpf.y;
-      } else {
-        return;
+        hideHint();
       }
 
-      applyShakeImpulse(ax, ay);
-    }
+      function handleMotion(e) {
+        if (!state.ready) return;
 
-    // ─────────────────────────────────────────
-    // ENABLE SENSORS
-    // ─────────────────────────────────────────
-    function enableSensors() {
-      window.addEventListener("deviceorientation", handleOrientation, true);
-      window.addEventListener("devicemotion",      handleMotion,      true);
-    }
+        let ax = 0, ay = 0;
+        const raw   = e.acceleration;
+        const withG = e.accelerationIncludingGravity;
 
-    // ─────────────────────────────────────────
-    // GYROSCOPE SETUP (handles iOS permission)
-    // ─────────────────────────────────────────
-    function setupGyroscope() {
-      // iOS 13+ requires explicit permission
-      if (
-        typeof DeviceOrientationEvent !== "undefined" &&
-        typeof DeviceOrientationEvent.requestPermission === "function"
-      ) {
-        permissionScreen.style.display = "flex";
+        if (raw && raw.x !== null && raw.y !== null) {
+          ax = raw.x || 0;
+          ay = raw.y || 0;
+        } else if (withG) {
+          const gx = withG.x || 0;
+          const gy = withG.y || 0;
+          if (hpf.prevX === null) { hpf.prevX = gx; hpf.prevY = gy; }
+          hpf.x = hpf.alpha * (hpf.x + gx - hpf.prevX);
+          hpf.y = hpf.alpha * (hpf.y + gy - hpf.prevY);
+          hpf.prevX = gx;
+          hpf.prevY = gy;
+          ax = hpf.x;
+          ay = hpf.y;
+        } else {
+          return;
+        }
 
-        permissionBtn.addEventListener("click", async () => {
-          try {
-            const res = await DeviceOrientationEvent.requestPermission();
-            permissionScreen.style.display = "none";
-            if (res === "granted") {
-              enableSensors();
-            } else {
+        applyShakeImpulse(ax, ay);
+      }
+
+      function setupMouseFallback() {
+        window.addEventListener("mousemove", (e) => {
+          if (!state.ready) return;
+
+          const cx = window.innerWidth / 2;
+          const cy = window.innerHeight / 2;
+          const nx = (e.clientX - cx) / cx;
+          const ny = (e.clientY - cy) / cy;
+
+          state.targetTiltX = clamp(nx * 0.8, -CFG.gravity.maxX, CFG.gravity.maxX);
+          state.targetTiltY = clamp(ny * 0.6,  0.05,              CFG.gravity.maxY);
+
+          hideHint();
+        });
+      }
+
+      function enableGyroscope() {
+        window.addEventListener("deviceorientation", handleOrientation, true);
+        window.addEventListener("devicemotion",      handleMotion,      true);
+        state.hasMotion = true;
+      }
+
+      function setupGyroscope() {
+        if (
+          typeof DeviceOrientationEvent !== "undefined" &&
+          typeof DeviceOrientationEvent.requestPermission === "function"
+        ) {
+          permissionScreen.style.display = "flex";
+
+          permissionBtn.addEventListener("click", async function () {
+            try {
+              const response = await DeviceOrientationEvent.requestPermission();
+
+              if (response === "granted") {
+                permissionScreen.style.display = "none";
+                enableGyroscope();
+              } else {
+                permissionScreen.style.display = "none";
+                setupMouseFallback();
+              }
+            } catch (err) {
+              permissionScreen.style.display = "none";
               setupMouseFallback();
             }
-          } catch {
-            permissionScreen.style.display = "none";
+          }, { once: true });
+
+          return;
+        }
+
+        let gotSignal = false;
+
+        function testOrientation(e) {
+          if (e && e.gamma !== null && e.beta !== null) {
+            gotSignal = true;
+            window.removeEventListener("deviceorientation", testOrientation, true);
+            enableGyroscope();
+          }
+        }
+
+        window.addEventListener("deviceorientation", testOrientation, true);
+
+        setTimeout(() => {
+          if (!gotSignal) {
+            window.removeEventListener("deviceorientation", testOrientation, true);
             setupMouseFallback();
           }
-        }, { once: true });
-
-        return;
+        }, 1200);
       }
 
-      // Android / other: test if we actually get sensor data
-      let gotSignal = false;
+      function setupDrag() {
+        const mouse = Mouse.create(canvas);
 
-      function testOrientation(e) {
-        if (e && e.gamma !== null && e.beta !== null) {
-          gotSignal = true;
-          window.removeEventListener("deviceorientation", testOrientation, true);
-          enableSensors();
-        }
-      }
-
-      window.addEventListener("deviceorientation", testOrientation, true);
-
-      // After 1.2s with no signal → fall back to mouse
-      setTimeout(() => {
-        if (!gotSignal) {
-          window.removeEventListener("deviceorientation", testOrientation, true);
-          setupMouseFallback();
-        }
-      }, 1200);
-    }
-
-    // ─────────────────────────────────────────
-    // MOUSE FALLBACK (desktop)
-    // ─────────────────────────────────────────
-    function setupMouseFallback() {
-      window.addEventListener("mousemove", (e) => {
-        if (!state.ready) return;
-        const cx = window.innerWidth  / 2;
-        const cy = window.innerHeight / 2;
-        const nx = (e.clientX - cx) / cx;
-        const ny = (e.clientY - cy) / cy;
-        state.targetTiltX = clamp(nx * 0.8, -CFG.gravity.maxX, CFG.gravity.maxX);
-        state.targetTiltY = clamp(ny * 0.6,  0.05,              CFG.gravity.maxY);
-        hideHint();
-      });
-    }
-
-    // ─────────────────────────────────────────
-    // DRAG (touch + mouse via Matter MouseConstraint)
-    // Forward touch events from touch-layer to the
-    // invisible canvas that Matter.js listens to.
-    // ─────────────────────────────────────────
-    function setupDrag() {
-      const mouse = Mouse.create(canvas);
-
-      // Scale mouse coords to match canvas resolution
-      Mouse.setScale(mouse, {
-        x: canvas.width  / window.innerWidth,
-        y: canvas.height / window.innerHeight
-      });
-
-      const mc = MouseConstraint.create(engine, {
-        mouse,
-        constraint: {
-          stiffness:        0.05,
-          damping:          0.3,
-          angularStiffness: 0.01,
-          render: { visible: false }
-        }
-      });
-      World.add(world, mc);
-
-      // Forward touch-layer events → canvas (for Matter.js drag)
-      function forwardToCanvas(domType, nativeType) {
-        touchLayer.addEventListener(nativeType || domType, (e) => {
-          const pt = e.touches ? (e.touches[0] || e.changedTouches[0]) : e;
-          if (!pt) return;
-          canvas.dispatchEvent(new MouseEvent(domType, { clientX: pt.clientX, clientY: pt.clientY, bubbles: true }));
-          if (e.cancelable) e.preventDefault();
-        }, { passive: false });
-      }
-
-      forwardToCanvas("mousedown", "touchstart");
-      forwardToCanvas("mousemove", "touchmove");
-      forwardToCanvas("mouseup",   "touchend");
-
-      // Also forward desktop mouse events
-      ["mousedown", "mousemove", "mouseup"].forEach((type) => {
-        touchLayer.addEventListener(type, (e) => {
-          canvas.dispatchEvent(new MouseEvent(type, { clientX: e.clientX, clientY: e.clientY, bubbles: true }));
+        Mouse.setScale(mouse, {
+          x: canvas.width / window.innerWidth,
+          y: canvas.height / window.innerHeight
         });
-      });
-    }
 
-    // ─────────────────────────────────────────
-    // MAIN LOOP
-    // ─────────────────────────────────────────
-    function loop() {
-      updateGravity();
-      syncDOMToPhysics();
-      requestAnimationFrame(loop);
-    }
+        const mouseConstraint = MouseConstraint.create(engine, {
+          mouse,
+          constraint: {
+            stiffness: 0.05,
+            damping: 0.3,
+            angularStiffness: 0.01,
+            render: { visible: false }
+          }
+        });
 
-    // ─────────────────────────────────────────
-    // RESIZE
-    // ─────────────────────────────────────────
-    window.addEventListener("resize", () => {
-      const W = window.innerWidth;
-      const H = window.innerHeight;
-      render.canvas.width  = W;
-      render.canvas.height = H;
-      render.options.width  = W;
-      render.options.height = H;
-    });
+        World.add(world, mouseConstraint);
 
-    // ─────────────────────────────────────────
-    // INTRO: elements start perfectly composed,
-    // gravity eases in after a brief settle.
-    // ─────────────────────────────────────────
-    function startIntro() {
-      engine.gravity.x = 0;
-      engine.gravity.y = 0;
+        function forward(type, sourceType) {
+          touchLayer.addEventListener(
+            sourceType || type,
+            (e) => {
+              const point = e.touches ? (e.touches[0] || e.changedTouches[0]) : e;
+              if (!point) return;
 
-      setTimeout(() => {
-        state.targetTiltY = 0.12;
-        state.ready = true;
-      }, CFG.initialSettle);
+              const sim = new MouseEvent(type, {
+                clientX: point.clientX,
+                clientY: point.clientY,
+                bubbles: true
+              });
 
-      // Auto-hide hint after 5.5 s
-      setTimeout(hideHint, 5500);
-    }
+              canvas.dispatchEvent(sim);
 
-    // ─────────────────────────────────────────
-    // INIT
-    // ─────────────────────────────────────────
-    function init() {
-      document.fonts.ready.then(() => {
-        buildWalls();
-        buildPhysicsElements();
-        setupDrag();
-        setupGyroscope();
-        startIntro();
-        loop();
-      });
-    }
+              if (e.cancelable) {
+                e.preventDefault();
+              }
+            },
+            { passive: false }
+          );
+        }
 
-    if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", init);
-    } else {
-      init();
-    }
+        forward("mousedown", "touchstart");
+        forward("mousemove", "touchmove");
+        forward("mouseup", "touchend");
 
-  })();
+        ["mousedown", "mousemove", "mouseup"].forEach((type) => {
+          touchLayer.addEventListener(type, (e) => {
+            const sim = new MouseEvent(type, {
+              clientX: e.clientX,
+              clientY: e.clientY,
+              bubbles: true
+            });
+            canvas.dispatchEvent(sim);
+          });
+        });
+      }
+
+      function loop() {
+        updateGravity();
+        syncDOMToPhysics();
+        requestAnimationFrame(loop);
+      }
+
+      function onResize() {
+        const W = window.innerWidth;
+        const H = window.innerHeight;
+
+        render.canvas.width = W;
+        render.canvas.height = H;
+        render.options.width = W;
+        render.options.height = H;
+      }
+
+      function startIntro() {
+        engine.gravity.x = 0;
+        engine.gravity.y = 0;
+
+        setTimeout(() => {
+          state.targetTiltY = 0.12;
+          state.ready = true;
+        }, CFG.initialSettle);
+
+        setTimeout(hideHint, 5500);
+      }
+
+      function init() {
+        document.fonts.ready.then(() => {
+          buildWalls();
+          buildPhysicsElements();
+          setupDrag();
+          setupGyroscope();
+          startIntro();
+          loop();
+        });
+      }
+
+      window.addEventListener("resize", onResize);
+
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", init);
+      } else {
+        init();
+      }
+    })();
   </script>
 </body>
 </html>
